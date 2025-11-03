@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../controladores/pin_controlador.dart';
 import '../../modelos/usuario_modelo.dart';
+import '../../servicios/sesion_servicio.dart';
 import '../principal/principal_vista.dart';
+import 'login_vista.dart';
 
 /// Vista para configurar o validar el PIN de acceso.
 class PinVista extends StatefulWidget {
-  const PinVista.configurar({super.key, required this.usuario}) : esConfiguracion = true;
+  const PinVista.configurar({super.key, required this.usuario})
+    : esConfiguracion = true;
 
-  const PinVista.validar({super.key, required this.usuario}) : esConfiguracion = false;
+  const PinVista.validar({super.key, required this.usuario})
+    : esConfiguracion = false;
 
   final UsuarioModelo usuario;
   final bool esConfiguracion;
@@ -60,8 +65,9 @@ class _PinVistaState extends State<PinVista> {
     setState(() => _procesando = false);
 
     if (error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -77,13 +83,32 @@ class _PinVistaState extends State<PinVista> {
     );
   }
 
+  Future<void> _manejarOlvidoPin() async {
+    setState(() => _procesando = true);
+    await Supabase.instance.client.auth.signOut();
+    await SesionServicio.limpiarSesion();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _procesando = false);
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<Widget>(builder: (_) => const LoginVista()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ThemeData tema = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.esConfiguracion ? 'Configurar PIN' : 'Ingresa tu PIN'),
+        title: Text(
+          widget.esConfiguracion ? 'Configurar PIN' : 'Ingresa tu PIN',
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -149,17 +174,23 @@ class _PinVistaState extends State<PinVista> {
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : Text(widget.esConfiguracion ? 'Guardar PIN' : 'Ingresar'),
+                            : Text(
+                                widget.esConfiguracion
+                                    ? 'Guardar PIN'
+                                    : 'Ingresar',
+                              ),
                       ),
                       if (!widget.esConfiguracion) ...<Widget>[
                         const SizedBox(height: 12),
                         TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: const Text('¿Olvidaste tu PIN? Inicia sesión con correo.'),
+                          onPressed: _procesando ? null : _manejarOlvidoPin,
+                          child: const Text(
+                            '¿Olvidaste tu PIN? Inicia sesión con correo.',
+                          ),
                         ),
                       ],
                     ],

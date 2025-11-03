@@ -32,7 +32,8 @@ class AuthRepositorio {
       if (perfil == null) {
         return UsuarioModelo(
           id: usuario.id,
-          nombreCompleto: usuario.userMetadata?['nombre_completo'] as String? ?? '',
+          nombreCompleto:
+              usuario.userMetadata?['nombre_completo'] as String? ?? '',
           correo: usuario.email ?? correo,
           telefono: usuario.userMetadata?['telefono'] as String? ?? '',
           terminosAceptados:
@@ -60,7 +61,8 @@ class AuthRepositorio {
     if (perfil == null) {
       return UsuarioModelo(
         id: usuario.id,
-        nombreCompleto: usuario.userMetadata?['nombre_completo'] as String? ?? '',
+        nombreCompleto:
+            usuario.userMetadata?['nombre_completo'] as String? ?? '',
         correo: usuario.email ?? '',
         telefono: usuario.userMetadata?['telefono'] as String? ?? '',
         terminosAceptados:
@@ -111,11 +113,29 @@ class AuthRepositorio {
 
   Future<void> solicitarRecuperacionContrasena(String correo) async {
     try {
-      await _cliente.auth.resetPasswordForEmail(correo);
+      await _cliente.auth.resetPasswordForEmail(
+        correo,
+        redirectTo:
+            'https://4maya07.github.io/EconomySafeAplicacion/#/recuperar',
+      );
     } on AuthApiException catch (error) {
       throw AuthRepositorioException(mensaje: error.message);
     } catch (error) {
-      throw AuthRepositorioException(mensaje: 'No se pudo enviar el correo: $error');
+      throw AuthRepositorioException(
+        mensaje: 'No se pudo enviar el correo: $error',
+      );
+    }
+  }
+
+  Future<void> actualizarContrasena(String nuevaContrasena) async {
+    try {
+      await _cliente.auth.updateUser(UserAttributes(password: nuevaContrasena));
+    } on AuthApiException catch (error) {
+      throw AuthRepositorioException(mensaje: error.message);
+    } catch (error) {
+      throw AuthRepositorioException(
+        mensaje: 'No se pudo actualizar la contraseña: $error',
+      );
     }
   }
 
@@ -140,7 +160,9 @@ class AuthRepositorio {
     } on PostgrestException catch (error) {
       throw AuthRepositorioException(mensaje: error.message);
     } catch (error) {
-      throw AuthRepositorioException(mensaje: 'No se pudo guardar el PIN: $error');
+      throw AuthRepositorioException(
+        mensaje: 'No se pudo guardar el PIN: $error',
+      );
     }
   }
 

@@ -10,7 +10,9 @@ import 'registro_vista.dart';
 
 /// Pantalla inicial de autenticación para EconomySafe.
 class LoginVista extends StatefulWidget {
-  const LoginVista({super.key});
+  const LoginVista({super.key, this.mensajeInicial});
+
+  final String? mensajeInicial;
 
   @override
   State<LoginVista> createState() => _LoginVistaState();
@@ -25,6 +27,22 @@ class _LoginVistaState extends State<LoginVista> {
   bool _verContrasena = false;
   bool _recordarme = false;
   bool _cargando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final String? mensaje = widget.mensajeInicial;
+    if (mensaje != null && mensaje.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(mensaje)));
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -52,9 +70,9 @@ class _LoginVistaState extends State<LoginVista> {
     setState(() => _cargando = false);
 
     if (resultado.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(resultado.error!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(resultado.error!)));
       return;
     }
 
@@ -75,9 +93,9 @@ class _LoginVistaState extends State<LoginVista> {
         ? PinVista.validar(usuario: usuario)
         : PinVista.configurar(usuario: usuario);
 
-    Navigator.of(context).push(
-      MaterialPageRoute<Widget>(builder: (_) => destino),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<Widget>(builder: (_) => destino));
   }
 
   @override
@@ -106,10 +124,7 @@ class _LoginVistaState extends State<LoginVista> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'EconomySafe',
-                  style: tema.textTheme.displayMedium,
-                ),
+                Text('EconomySafe', style: tema.textTheme.displayMedium),
                 const SizedBox(height: 8),
                 Text(
                   'Gestiona tus finanzas de forma inteligente',
@@ -191,7 +206,8 @@ class _LoginVistaState extends State<LoginVista> {
                                 onPressed: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute<Widget>(
-                                      builder: (_) => const RecuperarContrasenaVista(),
+                                      builder: (_) =>
+                                          const RecuperarContrasenaVista(),
                                     ),
                                   );
                                 },
@@ -206,7 +222,9 @@ class _LoginVistaState extends State<LoginVista> {
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Text('Iniciar Sesión'),
                           ),
