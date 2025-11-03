@@ -83,12 +83,15 @@ class Bordes {
 class TipografiaApp {
   static TextTheme obtenerTextTheme(Brightness brillo) {
     final bool esClaro = brillo == Brightness.light;
-    final Color colorPrincipal =
-        esClaro ? ColoresBase.textoPrincipal : ColoresBaseOscuro.textoPrincipal;
-    final Color colorSecundario =
-        esClaro ? ColoresBase.textoSecundario : ColoresBaseOscuro.textoSecundario;
-    final Color colorTerciario =
-        esClaro ? ColoresBase.textoTerciario : ColoresBaseOscuro.textoTerciario;
+    final Color colorPrincipal = esClaro
+        ? ColoresBase.textoPrincipal
+        : ColoresBaseOscuro.textoPrincipal;
+    final Color colorSecundario = esClaro
+        ? ColoresBase.textoSecundario
+        : ColoresBaseOscuro.textoSecundario;
+    final Color colorTerciario = esClaro
+        ? ColoresBase.textoTerciario
+        : ColoresBaseOscuro.textoTerciario;
 
     return TextTheme(
       displayLarge: TextStyle(
@@ -146,8 +149,6 @@ class TemasApp {
       onSecondary: Colors.white,
       error: ColoresAcciones.error,
       onError: Colors.white,
-      background: ColoresBase.fondoPrincipal,
-      onBackground: ColoresBase.textoPrincipal,
       surface: ColoresBase.fondoTarjetas,
       onSurface: ColoresBase.textoSecundario,
     );
@@ -164,18 +165,25 @@ class TemasApp {
         foregroundColor: ColoresBase.textoPrincipal,
       ),
       dividerColor: Bordes.lineaDivision,
-      dividerTheme: const DividerThemeData(color: Bordes.lineaDivision, thickness: 1),
+      dividerTheme: const DividerThemeData(
+        color: Bordes.lineaDivision,
+        thickness: 1,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.disabled)) {
+          backgroundColor: WidgetStateProperty.resolveWith((
+            Set<WidgetState> states,
+          ) {
+            if (states.contains(WidgetState.disabled)) {
               return ColoresAcciones.neutro;
             }
             return ColoresAcciones.primario;
           }),
-          foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-          overlayColor: MaterialStateProperty.all<Color>(ColoresAcciones.secundario.withOpacity(0.1)),
-          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+          overlayColor: WidgetStateProperty.all<Color>(
+            ColoresAcciones.secundario.withValues(alpha: 0.1),
+          ),
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
             ),
@@ -184,16 +192,20 @@ class TemasApp {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: MaterialStateProperty.all<Color>(ColoresAcciones.primario),
-          side: MaterialStateProperty.all<BorderSide>(
+          foregroundColor: WidgetStateProperty.all<Color>(
+            ColoresAcciones.primario,
+          ),
+          side: WidgetStateProperty.all<BorderSide>(
             const BorderSide(color: ColoresAcciones.primario),
           ),
-          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
             ),
           ),
-          overlayColor: MaterialStateProperty.all<Color>(ColoresAcciones.primario.withOpacity(0.08)),
+          overlayColor: WidgetStateProperty.all<Color>(
+            ColoresAcciones.primario.withValues(alpha: 0.08),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -221,8 +233,6 @@ class TemasApp {
       onSecondary: Colors.white,
       error: ColoresAcciones.error,
       onError: Colors.white,
-      background: ColoresBaseOscuro.fondoPrincipal,
-      onBackground: ColoresBaseOscuro.textoPrincipal,
       surface: ColoresBaseOscuro.fondoTarjetas,
       onSurface: ColoresBaseOscuro.textoSecundario,
     );
@@ -238,22 +248,26 @@ class TemasApp {
         elevation: 0,
         foregroundColor: ColoresBaseOscuro.textoPrincipal,
       ),
-      dividerColor: Bordes.hover.withOpacity(0.2),
+      dividerColor: Bordes.hover.withValues(alpha: 0.2),
       dividerTheme: DividerThemeData(
-        color: Bordes.hover.withOpacity(0.2),
+        color: Bordes.hover.withValues(alpha: 0.2),
         thickness: 1,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.disabled)) {
-              return ColoresAcciones.neutro.withOpacity(0.4);
+          backgroundColor: WidgetStateProperty.resolveWith((
+            Set<WidgetState> states,
+          ) {
+            if (states.contains(WidgetState.disabled)) {
+              return ColoresAcciones.neutro.withValues(alpha: 0.4);
             }
             return ColoresAcciones.primario;
           }),
-          foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-          overlayColor: MaterialStateProperty.all<Color>(ColoresAcciones.secundario.withOpacity(0.2)),
-          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+          overlayColor: WidgetStateProperty.all<Color>(
+            ColoresAcciones.secundario.withValues(alpha: 0.2),
+          ),
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
             ),
@@ -262,16 +276,20 @@ class TemasApp {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: MaterialStateProperty.all<Color>(ColoresBaseOscuro.textoPrincipal),
-          side: MaterialStateProperty.all<BorderSide>(
-            BorderSide(color: ColoresAcciones.primario.withOpacity(0.7)),
+          foregroundColor: WidgetStateProperty.all<Color>(
+            ColoresBaseOscuro.textoPrincipal,
           ),
-          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          side: WidgetStateProperty.all<BorderSide>(
+            BorderSide(color: ColoresAcciones.primario.withValues(alpha: 0.7)),
+          ),
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
             ),
           ),
-          overlayColor: MaterialStateProperty.all<Color>(ColoresAcciones.primario.withOpacity(0.12)),
+          overlayColor: WidgetStateProperty.all<Color>(
+            ColoresAcciones.primario.withValues(alpha: 0.12),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -280,7 +298,9 @@ class TemasApp {
         hintStyle: TipografiaApp.obtenerTextTheme(Brightness.dark).bodySmall,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
-          borderSide: BorderSide(color: ColoresAcciones.neutro.withOpacity(0.5)),
+          borderSide: BorderSide(
+            color: ColoresAcciones.neutro.withValues(alpha: 0.5),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Bordes.radioTarjetas),

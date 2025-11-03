@@ -93,6 +93,10 @@ class _LoginVistaState extends State<LoginVista> {
         ? PinVista.validar(usuario: usuario)
         : PinVista.configurar(usuario: usuario);
 
+    if (!mounted) {
+      return;
+    }
+
     Navigator.of(
       context,
     ).push(MaterialPageRoute<Widget>(builder: (_) => destino));
@@ -114,7 +118,7 @@ class _LoginVistaState extends State<LoginVista> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: tema.colorScheme.primary.withOpacity(0.12),
+                    color: tema.colorScheme.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(

@@ -58,6 +58,10 @@ class _RestablecerContrasenaVistaState
     await Supabase.instance.client.auth.signOut();
     await SesionServicio.limpiarSesion();
 
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Contraseña actualizada. Inicia sesión de nuevo.'),

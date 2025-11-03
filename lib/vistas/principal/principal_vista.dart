@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../modelos/cuenta_bancaria_modelo.dart';
+import 'cuentas/cuentas_vista.dart';
 import 'dashboard_vista.dart';
 
 /// Contenedor principal con navegación inferior y dashboard financiero.
@@ -12,20 +14,29 @@ class PrincipalVista extends StatefulWidget {
 
 class _PrincipalVistaState extends State<PrincipalVista> {
   int _indiceActual = 0;
+  final double _saldoEfectivo = 1250.50;
+  double _saldoCuentasBancarias = 0;
 
   void _cambiarIndice(int nuevoIndice) {
     setState(() => _indiceActual = nuevoIndice);
   }
 
+  void _actualizarResumenCuentas(ResumenCuentasModelo resumen) {
+    setState(() {
+      _saldoCuentasBancarias = resumen.totalDepositos;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final double saldoTotal = _saldoEfectivo + _saldoCuentasBancarias;
     final List<Widget> secciones = <Widget>[
       DashboardVista(
-        saldoTotal: 8250.75,
-        saldoEfectivo: 1250.50,
-        saldoCuentasBancarias: 7000.25,
+        saldoTotal: saldoTotal,
+        saldoEfectivo: _saldoEfectivo,
+        saldoCuentasBancarias: _saldoCuentasBancarias,
       ),
-      const _SeccionPlaceholder(titulo: 'Cuentas Bancarias'),
+      CuentasVista(onResumenActualizado: _actualizarResumenCuentas),
       const _SeccionPlaceholder(titulo: 'Ahorro'),
       const _SeccionPlaceholder(titulo: 'Reportes'),
       const _SeccionPlaceholder(titulo: 'Perfil'),
@@ -81,7 +92,7 @@ class _SeccionPlaceholder extends StatelessWidget {
           Icon(
             Icons.construction_outlined,
             size: 64,
-            color: tema.colorScheme.primary.withOpacity(0.6),
+            color: tema.colorScheme.primary.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(

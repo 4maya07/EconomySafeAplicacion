@@ -41,31 +41,66 @@ class DashboardVista extends StatelessWidget {
           const SizedBox(height: 24),
           Text('Acciones rápidas', style: textos.headlineMedium),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: <Widget>[
-              _AccionBoton(
-                etiqueta: 'Categoría de Gastos',
-                icono: Icons.category_outlined,
-                onPressed: onCategoriasGasto,
-              ),
-              _AccionBoton(
-                etiqueta: 'Nuevo Gasto',
-                icono: Icons.remove_circle_outline,
-                onPressed: onNuevoGasto,
-              ),
-              _AccionBoton(
-                etiqueta: 'Categoría de Ingreso',
-                icono: Icons.list_alt_outlined,
-                onPressed: onCategoriasIngreso,
-              ),
-              _AccionBoton(
-                etiqueta: 'Nuevo Ingreso',
-                icono: Icons.add_circle_outline,
-                onPressed: onNuevoIngreso,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool enUnaColumna = constraints.maxWidth < 600;
+              final Widget bloqueGastos = Expanded(
+                child: Column(
+                  children: <Widget>[
+                    _AccionBoton(
+                      etiqueta: 'Nuevo Gasto',
+                      icono: Icons.remove_circle_outline,
+                      colorBase: ColoresAcciones.error,
+                      onPressed: onNuevoGasto,
+                    ),
+                    const SizedBox(height: 12),
+                    _AccionBoton(
+                      etiqueta: 'Categoría de Gastos',
+                      icono: Icons.folder_open_outlined,
+                      colorBase: ColoresAcciones.error,
+                      onPressed: onCategoriasGasto,
+                    ),
+                  ],
+                ),
+              );
+              final Widget bloqueIngresos = Expanded(
+                child: Column(
+                  children: <Widget>[
+                    _AccionBoton(
+                      etiqueta: 'Nuevo Ingreso',
+                      icono: Icons.add_circle_outline,
+                      colorBase: ColoresAcciones.exito,
+                      onPressed: onNuevoIngreso,
+                    ),
+                    const SizedBox(height: 12),
+                    _AccionBoton(
+                      etiqueta: 'Categoría de Ingresos',
+                      icono: Icons.list_alt_outlined,
+                      colorBase: ColoresAcciones.exito,
+                      onPressed: onCategoriasIngreso,
+                    ),
+                  ],
+                ),
+              );
+
+              if (enUnaColumna) {
+                return Column(
+                  children: <Widget>[
+                    bloqueGastos,
+                    const SizedBox(height: 12),
+                    bloqueIngresos,
+                  ],
+                );
+              }
+
+              return Row(
+                children: <Widget>[
+                  bloqueGastos,
+                  const SizedBox(width: 12),
+                  bloqueIngresos,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -85,8 +120,7 @@ class _TarjetaResumen extends StatelessWidget {
   final double saldoCuentasBancarias;
 
   String _formatearSaldo(double monto) {
-    final String valor = monto.toStringAsFixed(2);
-    return '\$' + valor;
+    return '\$${monto.toStringAsFixed(2)}';
   }
 
   @override
@@ -105,8 +139,8 @@ class _TarjetaResumen extends StatelessWidget {
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: modoOscuro
-                ? Colors.black.withOpacity(0.4)
-                : Colors.black.withOpacity(0.06),
+                ? Colors.black.withValues(alpha: 0.4)
+                : Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -170,7 +204,7 @@ class _ItemSaldo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: tema.colorScheme.primary.withOpacity(0.08),
+        color: tema.colorScheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Bordes.radioTarjetas / 1.5),
       ),
       child: Row(
@@ -202,21 +236,58 @@ class _AccionBoton extends StatelessWidget {
   const _AccionBoton({
     required this.etiqueta,
     required this.icono,
+    required this.colorBase,
     this.onPressed,
   });
 
   final String etiqueta;
   final IconData icono;
+  final Color colorBase;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 180,
-      child: OutlinedButton.icon(
-        onPressed: onPressed ?? () => _mostrarNotificacionPlaceholder(context),
-        icon: Icon(icono),
-        label: Text(etiqueta),
+    final ThemeData tema = Theme.of(context);
+    final Color fondo = colorBase.withValues(alpha: 0.16);
+    final Color borde = colorBase.withValues(alpha: 0.4);
+    final Color iconoFondo = colorBase.withValues(alpha: 0.24);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
+        onTap: onPressed ?? () => _mostrarNotificacionPlaceholder(context),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+          decoration: BoxDecoration(
+            color: fondo,
+            border: Border.all(color: borde, width: 1.2),
+            borderRadius: BorderRadius.circular(Bordes.radioTarjetas),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconoFondo,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icono, color: colorBase),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  etiqueta,
+                  style: tema.textTheme.labelLarge?.copyWith(color: colorBase),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colorBase.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
