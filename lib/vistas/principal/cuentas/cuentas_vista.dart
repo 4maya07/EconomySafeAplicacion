@@ -8,9 +8,14 @@ import '../../../servicios/cuentas_servicio.dart';
 import '../../../sistema_diseno/identidad_visual.dart';
 
 class CuentasVista extends StatefulWidget {
-  const CuentasVista({super.key, this.onResumenActualizado});
+  const CuentasVista({
+    super.key,
+    this.onResumenActualizado,
+    this.recargaNotifier,
+  });
 
   final ValueChanged<ResumenCuentasModelo>? onResumenActualizado;
+  final ValueNotifier<int>? recargaNotifier;
 
   @override
   State<CuentasVista> createState() => _CuentasVistaState();
@@ -19,6 +24,9 @@ class CuentasVista extends StatefulWidget {
 class _CuentasVistaState extends State<CuentasVista> {
   final CuentasServicio _servicio = CuentasServicio();
   final List<CuentaBancariaModelo> _cuentas = <CuentaBancariaModelo>[];
+
+  ValueNotifier<int>? _recargaNotifier;
+  VoidCallback? _recargaListener;
 
   List<BancoCatalogoModelo> _catalogo = <BancoCatalogoModelo>[];
   ResumenCuentasModelo? _resumenRemoto;
@@ -31,7 +39,42 @@ class _CuentasVistaState extends State<CuentasVista> {
   @override
   void initState() {
     super.initState();
+    _instalarRecarga(widget.recargaNotifier);
     _cargarDatos();
+  }
+
+  @override
+  void didUpdateWidget(CuentasVista oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.recargaNotifier != widget.recargaNotifier) {
+      _desinstalarRecarga(oldWidget.recargaNotifier);
+      _instalarRecarga(widget.recargaNotifier);
+    }
+  }
+
+  @override
+  void dispose() {
+    _desinstalarRecarga(_recargaNotifier);
+    super.dispose();
+  }
+
+  void _instalarRecarga(ValueNotifier<int>? notifier) {
+    if (notifier == null) {
+      return;
+    }
+    _recargaNotifier = notifier;
+    _recargaListener = _recargaListener ?? () => _cargarDatos();
+    notifier.addListener(_recargaListener!);
+  }
+
+  void _desinstalarRecarga(ValueNotifier<int>? notifier) {
+    if (notifier == null || _recargaListener == null) {
+      return;
+    }
+    notifier.removeListener(_recargaListener!);
+    if (identical(_recargaNotifier, notifier)) {
+      _recargaNotifier = null;
+    }
   }
 
   Future<void> _cargarDatos() async {

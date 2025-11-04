@@ -44,60 +44,56 @@ class DashboardVista extends StatelessWidget {
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final bool enUnaColumna = constraints.maxWidth < 600;
-              final Widget bloqueGastos = Expanded(
-                child: Column(
-                  children: <Widget>[
-                    _AccionBoton(
-                      etiqueta: 'Nuevo Gasto',
-                      icono: Icons.remove_circle_outline,
-                      colorBase: ColoresAcciones.error,
-                      onPressed: onNuevoGasto,
-                    ),
-                    const SizedBox(height: 12),
-                    _AccionBoton(
-                      etiqueta: 'Categoría de Gastos',
-                      icono: Icons.folder_open_outlined,
-                      colorBase: ColoresAcciones.error,
-                      onPressed: onCategoriasGasto,
-                    ),
-                  ],
-                ),
+              final Widget bloqueGastos = _BloqueAcciones(
+                acciones: <Widget>[
+                  _AccionBoton(
+                    etiqueta: 'Nuevo Gasto',
+                    icono: Icons.remove_circle_outline,
+                    colorBase: ColoresAcciones.error,
+                    onPressed: onNuevoGasto,
+                  ),
+                  const SizedBox(height: 12),
+                  _AccionBoton(
+                    etiqueta: 'Categoría de Gastos',
+                    icono: Icons.folder_open_outlined,
+                    colorBase: ColoresAcciones.error,
+                    onPressed: onCategoriasGasto,
+                  ),
+                ],
               );
-              final Widget bloqueIngresos = Expanded(
-                child: Column(
-                  children: <Widget>[
-                    _AccionBoton(
-                      etiqueta: 'Nuevo Ingreso',
-                      icono: Icons.add_circle_outline,
-                      colorBase: ColoresAcciones.exito,
-                      onPressed: onNuevoIngreso,
-                    ),
-                    const SizedBox(height: 12),
-                    _AccionBoton(
-                      etiqueta: 'Categoría de Ingresos',
-                      icono: Icons.list_alt_outlined,
-                      colorBase: ColoresAcciones.exito,
-                      onPressed: onCategoriasIngreso,
-                    ),
-                  ],
-                ),
+              final Widget bloqueIngresos = _BloqueAcciones(
+                acciones: <Widget>[
+                  _AccionBoton(
+                    etiqueta: 'Nuevo Ingreso',
+                    icono: Icons.add_circle_outline,
+                    colorBase: ColoresAcciones.exito,
+                    onPressed: onNuevoIngreso,
+                  ),
+                  const SizedBox(height: 12),
+                  _AccionBoton(
+                    etiqueta: 'Categoría de Ingresos',
+                    icono: Icons.list_alt_outlined,
+                    colorBase: ColoresAcciones.exito,
+                    onPressed: onCategoriasIngreso,
+                  ),
+                ],
               );
 
               if (enUnaColumna) {
                 return Column(
                   children: <Widget>[
-                    bloqueGastos,
+                    SizedBox(width: double.infinity, child: bloqueGastos),
                     const SizedBox(height: 12),
-                    bloqueIngresos,
+                    SizedBox(width: double.infinity, child: bloqueIngresos),
                   ],
                 );
               }
 
               return Row(
                 children: <Widget>[
-                  bloqueGastos,
+                  Expanded(child: bloqueGastos),
                   const SizedBox(width: 12),
-                  bloqueIngresos,
+                  Expanded(child: bloqueIngresos),
                 ],
               );
             },
@@ -105,6 +101,17 @@ class DashboardVista extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _BloqueAcciones extends StatelessWidget {
+  const _BloqueAcciones({required this.acciones});
+
+  final List<Widget> acciones;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: acciones);
   }
 }
 
