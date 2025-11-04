@@ -392,7 +392,6 @@ class _ResumenCategorias extends StatelessWidget {
     final ThemeData tema = Theme.of(context);
     final TextTheme textos = tema.textTheme;
     final bool modoOscuro = tema.brightness == Brightness.dark;
-    final String descripcion = categoria.descripcion?.trim() ?? '';
 
     final Color fondo = modoOscuro
         ? ColoresBaseOscuro.fondoTarjetas
