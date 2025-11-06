@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../modelos/cuenta_bancaria_modelo.dart';
+import '../../modelos/gasto_modelo.dart';
 import '../../modelos/ingreso_modelo.dart';
+import '../../modelos/transaccion_financiera_modelo.dart';
 import '../../servicios/cuentas_servicio.dart';
+import '../../servicios/gastos_servicio.dart';
 import '../../servicios/ingresos_servicio.dart';
 import 'categorias_gasto/categorias_gasto_vista.dart';
 import 'categorias_ingreso/categorias_ingreso_vista.dart';
@@ -12,6 +15,7 @@ import 'cuentas/cuentas_vista.dart';
 import 'dashboard_vista.dart';
 import 'gastos/gastos_vista.dart';
 import 'ingresos/ingresos_vista.dart';
+import 'perfil/perfil_vista.dart';
 
 /// Contenedor principal con navegación inferior y dashboard financiero.
 class PrincipalVista extends StatefulWidget {
@@ -25,9 +29,13 @@ class _PrincipalVistaState extends State<PrincipalVista> {
   int _indiceActual = 0;
   double _saldoEfectivo = 0;
   double _saldoCuentasBancarias = 0;
+  bool _cargandoTransacciones = true;
   final CuentasServicio _cuentasServicio = CuentasServicio();
   final IngresosServicio _ingresosServicio = IngresosServicio();
+  final GastosServicio _gastosServicio = GastosServicio();
   final ValueNotifier<int> _recargaCuentasNotifier = ValueNotifier<int>(0);
+  final List<TransaccionFinancieraModelo> _transacciones =
+      <TransaccionFinancieraModelo>[];
 
   @override
   void initState() {
@@ -47,7 +55,7 @@ class _PrincipalVistaState extends State<PrincipalVista> {
 
   void _actualizarResumenCuentas(ResumenCuentasModelo resumen) {
     setState(() {
-      _saldoCuentasBancarias = resumen.totalDepositos;
+      _saldoCuentasBancarias = resumen.totalGeneral;
     });
     _refrescarSaldoEfectivo();
   }
@@ -69,7 +77,10 @@ class _PrincipalVistaState extends State<PrincipalVista> {
   Future<void> _abrirGastos({bool abrirFormulario = false}) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => GastosVista(abrirFormularioAlIniciar: abrirFormulario),
+        builder: (_) => GastosVista(
+          abrirFormularioAlIniciar: abrirFormulario,
+          onGastosActualizados: _notificarCambiosFinancieros,
+        ),
       ),
     );
     await _refrescarResumenFinanzas();
@@ -78,8 +89,7 @@ class _PrincipalVistaState extends State<PrincipalVista> {
   Future<void> _abrirIngresos({bool abrirFormulario = false}) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            IngresosVista(
+        builder: (_) => IngresosVista(
           abrirFormularioAlIniciar: abrirFormulario,
           onIngresosActualizados: _notificarCambiosFinancieros,
         ),
@@ -100,9 +110,17 @@ class _PrincipalVistaState extends State<PrincipalVista> {
     }
 
     try {
-      final double totalEfectivo = await _ingresosServicio.obtenerTotalPorMedio(
-        usuario.id,
-        medio: MedioIngreso.efectivo,
+      final List<double> totales = await Future.wait<double>(
+        <Future<double>>[
+          _ingresosServicio.obtenerTotalPorMedio(
+            usuario.id,
+            medio: MedioIngreso.efectivo,
+          ),
+          _gastosServicio.obtenerTotalPorMedio(
+            usuario.id,
+            medio: MedioPagoGasto.efectivo,
+          ),
+        ],
       );
 
       if (!mounted) {
@@ -110,7 +128,7 @@ class _PrincipalVistaState extends State<PrincipalVista> {
       }
 
       setState(() {
-        _saldoEfectivo = totalEfectivo;
+        _saldoEfectivo = totales[0] - totales[1];
       });
     } catch (_) {
       // Se ignoran errores para mantener la experiencia fluida.
@@ -124,15 +142,18 @@ class _PrincipalVistaState extends State<PrincipalVista> {
     }
 
     try {
-      final List<dynamic> resultados = await Future.wait<dynamic>(
-        <Future<dynamic>>[
-          _cuentasServicio.obtenerResumen(usuario.id),
-          _ingresosServicio.obtenerTotalPorMedio(
-            usuario.id,
-            medio: MedioIngreso.efectivo,
-          ),
-        ],
-      );
+      final List<dynamic> resultados =
+          await Future.wait<dynamic>(<Future<dynamic>>[
+            _cuentasServicio.obtenerResumen(usuario.id),
+            _ingresosServicio.obtenerTotalPorMedio(
+              usuario.id,
+              medio: MedioIngreso.efectivo,
+            ),
+            _gastosServicio.obtenerTotalPorMedio(
+              usuario.id,
+              medio: MedioPagoGasto.efectivo,
+            ),
+          ]);
 
       if (!mounted) {
         return;
@@ -140,14 +161,126 @@ class _PrincipalVistaState extends State<PrincipalVista> {
 
       final ResumenCuentasModelo? resumen =
           resultados[0] as ResumenCuentasModelo?;
-      final double saldoEfectivo = resultados[1] as double;
+      final double totalIngresosEfectivo = resultados[1] as double;
+      final double totalGastosEfectivo = resultados[2] as double;
 
       setState(() {
-        _saldoCuentasBancarias = resumen?.totalDepositos ?? 0;
-        _saldoEfectivo = saldoEfectivo;
+        _saldoCuentasBancarias = resumen?.totalGeneral ?? 0;
+        _saldoEfectivo = totalIngresosEfectivo - totalGastosEfectivo;
       });
+
+      await _cargarTransacciones(
+        saldoEfectivoReferencia: _saldoEfectivo,
+      );
     } catch (_) {
       // Ignorar errores silenciosamente para no interrumpir la navegación.
+    }
+  }
+
+  Future<void> _cargarTransacciones({double? saldoEfectivoReferencia}) async {
+    final User? usuario = Supabase.instance.client.auth.currentUser;
+    if (usuario == null) {
+      if (mounted) {
+        setState(() {
+          _cargandoTransacciones = false;
+          _transacciones.clear();
+        });
+      }
+      return;
+    }
+
+    setState(() => _cargandoTransacciones = true);
+
+    try {
+      final List<dynamic> resultados =
+          await Future.wait<dynamic>(<Future<dynamic>>[
+            _ingresosServicio.obtenerIngresos(
+              usuario.id,
+              limite: 50,
+            ),
+            _gastosServicio.obtenerGastos(
+              usuario.id,
+              limite: 50,
+            ),
+            _cuentasServicio.obtenerCuentas(usuario.id),
+          ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      final List<IngresoModelo> ingresos =
+          resultados[0] as List<IngresoModelo>;
+      final List<GastoModelo> gastos = resultados[1] as List<GastoModelo>;
+      final List<CuentaBancariaModelo> cuentas =
+          resultados[2] as List<CuentaBancariaModelo>;
+
+      final Map<String, double> saldosActuales = <String, double>{
+        'efectivo': saldoEfectivoReferencia ?? _saldoEfectivo,
+      };
+
+      for (final CuentaBancariaModelo cuenta in cuentas) {
+        if (cuenta.id == null) {
+          continue;
+        }
+        saldosActuales['cuenta_${cuenta.id}'] = cuenta.montoDisponible;
+      }
+
+      final List<TransaccionFinancieraModelo> combinadas = <
+          TransaccionFinancieraModelo>[
+        ...ingresos.map(TransaccionFinancieraModelo.desdeIngreso),
+        ...gastos.map(TransaccionFinancieraModelo.desdeGasto),
+      ];
+
+      combinadas.sort(
+        (TransaccionFinancieraModelo a, TransaccionFinancieraModelo b) =>
+            b.fecha.compareTo(a.fecha),
+      );
+
+      final Map<String, double> saldosPorClave = Map<String, double>.from(
+        saldosActuales,
+      );
+      final List<TransaccionFinancieraModelo> conSaldos =
+          <TransaccionFinancieraModelo>[];
+
+      // Reconstruimos los saldos previos partiendo de los valores actuales.
+      for (final TransaccionFinancieraModelo transaccion in combinadas) {
+        final String clave = transaccion.claveSaldo;
+        final double saldoDespues = saldosPorClave.putIfAbsent(
+          clave,
+          () => transaccion.tipo == TipoTransaccion.ingreso
+              ? transaccion.monto
+              : 0,
+        );
+
+        double saldoAntes;
+        if (transaccion.tipo == TipoTransaccion.ingreso) {
+          saldoAntes = saldoDespues - transaccion.monto;
+        } else {
+          saldoAntes = saldoDespues + transaccion.monto;
+        }
+
+        saldosPorClave[clave] = saldoAntes;
+
+        conSaldos.add(
+          transaccion.copiarCon(
+            saldoAntes: saldoAntes,
+            saldoDespues: saldoDespues,
+          ),
+        );
+      }
+
+      setState(() {
+        _transacciones
+          ..clear()
+          ..addAll(conSaldos);
+        _cargandoTransacciones = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _cargandoTransacciones = false);
     }
   }
 
@@ -159,6 +292,8 @@ class _PrincipalVistaState extends State<PrincipalVista> {
         saldoTotal: saldoTotal,
         saldoEfectivo: _saldoEfectivo,
         saldoCuentasBancarias: _saldoCuentasBancarias,
+        transacciones: _transacciones,
+        cargandoTransacciones: _cargandoTransacciones,
         onCategoriasGasto: _abrirCategoriasGasto,
         onCategoriasIngreso: _abrirCategoriasIngreso,
         onNuevoGasto: () => _abrirGastos(abrirFormulario: true),
@@ -171,7 +306,7 @@ class _PrincipalVistaState extends State<PrincipalVista> {
       ),
       const _SeccionPlaceholder(titulo: 'Ahorro'),
       const _SeccionPlaceholder(titulo: 'Reportes'),
-      const _SeccionPlaceholder(titulo: 'Perfil'),
+      const PerfilVista(),
     ];
 
     return Scaffold(

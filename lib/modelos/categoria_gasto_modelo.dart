@@ -1,5 +1,47 @@
 import 'package:flutter/foundation.dart';
 
+/// Periodicidad configurada para una categoría de gasto.
+enum CategoriaFrecuencia {
+  ninguna,
+  mensual,
+  bimestral,
+  trimestral,
+  cuatrimestral,
+  anual,
+  personalizada,
+}
+
+CategoriaFrecuencia _frecuenciaDesdeString(String? valor) {
+  if (valor == null || valor.isEmpty) {
+    return CategoriaFrecuencia.ninguna;
+  }
+  return CategoriaFrecuencia.values.firstWhere(
+    (CategoriaFrecuencia item) => item.name == valor,
+    orElse: () => CategoriaFrecuencia.ninguna,
+  );
+}
+
+String _frecuenciaAString(CategoriaFrecuencia frecuencia) => frecuencia.name;
+
+String _etiquetaFrecuencia(CategoriaFrecuencia frecuencia) {
+  switch (frecuencia) {
+    case CategoriaFrecuencia.ninguna:
+      return 'Sin periodicidad';
+    case CategoriaFrecuencia.mensual:
+      return 'Mensual';
+    case CategoriaFrecuencia.bimestral:
+      return 'Bimestral';
+    case CategoriaFrecuencia.trimestral:
+      return 'Trimestral';
+    case CategoriaFrecuencia.cuatrimestral:
+      return 'Cuatrimestral';
+    case CategoriaFrecuencia.anual:
+      return 'Anual';
+    case CategoriaFrecuencia.personalizada:
+      return 'Rango personalizado';
+  }
+}
+
 /// Representa una categoría de gasto configurada por el usuario.
 @immutable
 class CategoriaGastoModelo {
@@ -11,6 +53,9 @@ class CategoriaGastoModelo {
     required this.montoMaximo,
     this.montoGastado = 0,
     this.montoAdicionalPermitido = 0,
+    this.frecuencia = CategoriaFrecuencia.ninguna,
+    this.fechaInicio,
+    this.fechaFin,
     this.creadoEl,
     this.actualizadoEl,
   });
@@ -25,6 +70,9 @@ class CategoriaGastoModelo {
       montoGastado: _aDouble(datos['monto_gastado']) ?? 0,
       montoAdicionalPermitido:
           _aDouble(datos['monto_adicional_permitido']) ?? 0,
+      frecuencia: _frecuenciaDesdeString(datos['frecuencia'] as String?),
+      fechaInicio: _aFecha(datos['fecha_inicio']),
+      fechaFin: _aFecha(datos['fecha_fin']),
       creadoEl: _aFecha(datos['created_at']),
       actualizadoEl: _aFecha(datos['updated_at']),
     );
@@ -37,6 +85,9 @@ class CategoriaGastoModelo {
       'monto_maximo': montoMaximo,
       'monto_gastado': montoGastado,
       'monto_adicional_permitido': montoAdicionalPermitido,
+      'frecuencia': _frecuenciaAString(frecuencia),
+      'fecha_inicio': fechaInicio?.toIso8601String(),
+      'fecha_fin': fechaFin?.toIso8601String(),
     };
 
     if (incluirUsuario) {
@@ -54,6 +105,9 @@ class CategoriaGastoModelo {
     double? montoMaximo,
     double? montoGastado,
     double? montoAdicionalPermitido,
+    CategoriaFrecuencia? frecuencia,
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
     DateTime? creadoEl,
     DateTime? actualizadoEl,
   }) {
@@ -66,6 +120,9 @@ class CategoriaGastoModelo {
       montoGastado: montoGastado ?? this.montoGastado,
       montoAdicionalPermitido:
           montoAdicionalPermitido ?? this.montoAdicionalPermitido,
+      frecuencia: frecuencia ?? this.frecuencia,
+      fechaInicio: fechaInicio ?? this.fechaInicio,
+      fechaFin: fechaFin ?? this.fechaFin,
       creadoEl: creadoEl ?? this.creadoEl,
       actualizadoEl: actualizadoEl ?? this.actualizadoEl,
     );
@@ -78,6 +135,9 @@ class CategoriaGastoModelo {
   final double montoMaximo;
   final double montoGastado;
   final double montoAdicionalPermitido;
+  final CategoriaFrecuencia frecuencia;
+  final DateTime? fechaInicio;
+  final DateTime? fechaFin;
   final DateTime? creadoEl;
   final DateTime? actualizadoEl;
 
@@ -89,6 +149,10 @@ class CategoriaGastoModelo {
   }
 
   bool get sobreLimite => montoGastado > montoMaximo;
+
+  bool get tieneRangoFechas => fechaInicio != null && fechaFin != null;
+
+  String get etiquetaFrecuencia => _etiquetaFrecuencia(frecuencia);
 }
 
 double? _aDouble(dynamic valor) {

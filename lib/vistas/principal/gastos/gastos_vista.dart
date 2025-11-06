@@ -12,9 +12,14 @@ import '../../../sistema_diseno/identidad_visual.dart';
 enum _FiltroMedio { todos, efectivo, banco }
 
 class GastosVista extends StatefulWidget {
-  const GastosVista({super.key, this.abrirFormularioAlIniciar = false});
+  const GastosVista({
+    super.key,
+    this.abrirFormularioAlIniciar = false,
+    this.onGastosActualizados,
+  });
 
   final bool abrirFormularioAlIniciar;
+  final VoidCallback? onGastosActualizados;
 
   @override
   State<GastosVista> createState() => _GastosVistaState();
@@ -204,6 +209,7 @@ class _GastosVistaState extends State<GastosVista> {
         _procesando = false;
       });
       _mostrarMensaje('Gasto registrado correctamente.');
+      widget.onGastosActualizados?.call();
     } catch (_) {
       if (!mounted) {
         return;
@@ -249,6 +255,7 @@ class _GastosVistaState extends State<GastosVista> {
         _procesando = false;
       });
       _mostrarMensaje('Gasto actualizado.');
+      widget.onGastosActualizados?.call();
     } catch (_) {
       if (!mounted) {
         return;
@@ -308,6 +315,7 @@ class _GastosVistaState extends State<GastosVista> {
         _procesando = false;
       });
       _mostrarMensaje('Gasto eliminado.');
+      widget.onGastosActualizados?.call();
     } catch (_) {
       if (!mounted) {
         return;
@@ -764,6 +772,16 @@ class _FormularioGastoSheetState extends State<_FormularioGastoSheet> {
         ? _cuentaId
         : null;
 
+    CuentaBancariaModelo? cuentaSeleccionadaModelo;
+    if (cuentaSeleccionada != null) {
+      for (final CuentaBancariaModelo cuenta in widget.cuentas) {
+        if (cuenta.id == cuentaSeleccionada) {
+          cuentaSeleccionadaModelo = cuenta;
+          break;
+        }
+      }
+    }
+
     final GastoModelo resultado = GastoModelo(
       id: widget.gastoInicial?.id,
       usuarioId: widget.usuarioId,
@@ -772,11 +790,7 @@ class _FormularioGastoSheetState extends State<_FormularioGastoSheet> {
           .firstWhere((CategoriaGastoModelo cat) => cat.id == _categoriaId)
           .nombre,
       cuentaId: cuentaSeleccionada,
-      cuentaNombre: cuentaSeleccionada == null
-          ? null
-          : widget.cuentas
-              .firstWhere((CuentaBancariaModelo cuenta) => cuenta.id == cuentaSeleccionada)
-              .nombreBanco,
+    cuentaNombre: cuentaSeleccionadaModelo?.descripcionSeleccion,
       monto: monto,
       descripcion: _descripcionCtrl.text.trim().isEmpty
           ? null
@@ -903,7 +917,7 @@ class _FormularioGastoSheetState extends State<_FormularioGastoSheet> {
                         .map(
                           (CuentaBancariaModelo cuenta) => DropdownMenuItem<String>(
                             value: cuenta.id,
-                            child: Text(cuenta.nombreBanco),
+                            child: Text(cuenta.descripcionSeleccion),
                           ),
                         )
                         .toList(),

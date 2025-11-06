@@ -152,6 +152,56 @@ class CuentaBancariaModelo {
       bancoPersonalizado ?? catalogoBancoNombre ?? 'Banco no especificado';
 
   bool get esCredito => tipo == TipoCuenta.credito;
+
+  /// Etiqueta legible del tipo de cuenta (Ahorro, Crédito, etc.).
+  String get etiquetaTipo => _etiquetaTipo(tipo);
+
+  /// Texto descriptivo para desplegables y listados compactos.
+  String get descripcionSeleccion => construirDescripcion(
+        catalogoBancoNombre: catalogoBancoNombre,
+        bancoPersonalizado: bancoPersonalizado,
+        titular: titular,
+        tipo: tipo,
+        numeroCuenta: numeroCuenta,
+      );
+
+  /// Construye una descripción resumida reutilizando los mismos criterios.
+  static String construirDescripcion({
+    String? catalogoBancoNombre,
+    String? bancoPersonalizado,
+    String? titular,
+    TipoCuenta? tipo,
+    String? tipoPlano,
+    String? numeroCuenta,
+  }) {
+    final List<String> partes = <String>[];
+
+    final String? nombreBanco =
+        bancoPersonalizado?.trim().isNotEmpty == true
+            ? bancoPersonalizado
+            : catalogoBancoNombre;
+    if ((nombreBanco ?? '').trim().isNotEmpty) {
+      partes.add(nombreBanco!.trim());
+    }
+
+    final TipoCuenta tipoDetectado = tipo ??
+        (tipoPlano != null ? tipoCuentaDesdeString(tipoPlano) : TipoCuenta.ahorro);
+    partes.add(_etiquetaTipo(tipoDetectado));
+
+    final String? sufijoCuenta = _mascaraNumero(numeroCuenta);
+    if (sufijoCuenta != null) {
+      partes.add(sufijoCuenta);
+    }
+
+    if ((titular ?? '').trim().isNotEmpty) {
+      partes.add(titular!.trim());
+    }
+
+    if (partes.isEmpty) {
+      return 'Cuenta sin identificar';
+    }
+    return partes.join(' · ');
+  }
 }
 
 /// Modelo auxiliar que representa la vista `v_resumen_cuentas`.
@@ -199,4 +249,33 @@ DateTime? _aFecha(dynamic valor) {
   if (valor == null) return null;
   if (valor is DateTime) return valor;
   return DateTime.tryParse(valor.toString());
+}
+
+String _etiquetaTipo(TipoCuenta tipo) {
+  switch (tipo) {
+    case TipoCuenta.nomina:
+      return 'Nómina';
+    case TipoCuenta.negocios:
+      return 'Negocios';
+    case TipoCuenta.ahorro:
+      return 'Ahorro';
+    case TipoCuenta.credito:
+      return 'Crédito';
+  }
+}
+
+String? _mascaraNumero(String? numero) {
+  if (numero == null) {
+    return null;
+  }
+  final String limpio = numero.replaceAll(RegExp(r'\D'), '');
+  if (limpio.isEmpty) {
+    final String recortado = numero.trim();
+    return recortado.isEmpty ? null : recortado;
+  }
+  if (limpio.length <= 4) {
+    return '****$limpio';
+  }
+  final String ultimos = limpio.substring(limpio.length - 4);
+  return '****$ultimos';
 }

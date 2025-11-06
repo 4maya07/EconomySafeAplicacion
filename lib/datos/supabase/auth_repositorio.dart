@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../modelos/usuario_modelo.dart';
+import '../../utilidades/validador_credenciales.dart';
 import 'supabase_servicio.dart';
 
 /// Gestiona todas las operaciones de autenticación y perfiles en Supabase.
@@ -12,6 +14,7 @@ class AuthRepositorio {
 
   final SupabaseClient _cliente;
   static const String _tablaUsuarios = 'usuarios';
+  static const String _bucketPerfiles = 'perfiles';
 
   Future<UsuarioModelo?> iniciarSesion({
     required String correo,
@@ -38,6 +41,13 @@ class AuthRepositorio {
           telefono: usuario.userMetadata?['telefono'] as String? ?? '',
           terminosAceptados:
               usuario.userMetadata?['terminos_aceptados'] as bool? ?? false,
+          correoSecundario:
+              usuario.userMetadata?['correo_secundario'] as String?,
+          documentoIdentidad:
+              usuario.userMetadata?['documento_identidad'] as String?,
+          paisResidencia: usuario.userMetadata?['pais_residencia'] as String?,
+          monedaPreferida: usuario.userMetadata?['moneda_preferida'] as String?,
+          fotoUrl: usuario.userMetadata?['foto_url'] as String?,
           pinHash: usuario.userMetadata?['pin_hash'] as String?,
         );
       }
@@ -67,6 +77,12 @@ class AuthRepositorio {
         telefono: usuario.userMetadata?['telefono'] as String? ?? '',
         terminosAceptados:
             usuario.userMetadata?['terminos_aceptados'] as bool? ?? false,
+        correoSecundario: usuario.userMetadata?['correo_secundario'] as String?,
+        documentoIdentidad:
+            usuario.userMetadata?['documento_identidad'] as String?,
+        paisResidencia: usuario.userMetadata?['pais_residencia'] as String?,
+        monedaPreferida: usuario.userMetadata?['moneda_preferida'] as String?,
+        fotoUrl: usuario.userMetadata?['foto_url'] as String?,
         pinHash: usuario.userMetadata?['pin_hash'] as String?,
       );
     }
@@ -194,14 +210,210 @@ class AuthRepositorio {
     return resultado.first;
   }
 
+  Future<UsuarioModelo> actualizarPerfil({
+    required String usuarioId,
+    String? nombreCompleto,
+    String? telefono,
+    String? correoSecundario,
+    String? documentoIdentidad,
+    String? paisResidencia,
+    String? monedaPreferida,
+  }) async {
+    final Map<String, dynamic> datosActualizados = <String, dynamic>{
+      if (nombreCompleto != null) 'nombre_completo': nombreCompleto,
+      if (telefono != null) 'telefono': telefono,
+      if (correoSecundario != null) 'correo_secundario': correoSecundario,
+      if (documentoIdentidad != null) 'documento_identidad': documentoIdentidad,
+      if (paisResidencia != null) 'pais_residencia': paisResidencia,
+      if (monedaPreferida != null) 'moneda_preferida': monedaPreferida,
+    };
+
+    if (datosActualizados.isEmpty) {
+      throw AuthRepositorioException(
+        mensaje: 'No se proporcionaron cambios para actualizar.',
+      );
+    }
+
+    final User? usuarioActual = _cliente.auth.currentUser;
+    if (usuarioActual == null || usuarioActual.id != usuarioId) {
+      throw AuthRepositorioException(
+        mensaje: 'No se encontró una sesión activa para actualizar el perfil.',
+      );
+    }
+
+    _validarDatosPerfil(
+      nombreCompleto: nombreCompleto,
+      telefono: telefono,
+      correoSecundario: correoSecundario,
+    );
+
+    try {
+      await _cliente
+          .from(_tablaUsuarios)
+          .update(datosActualizados)
+          .eq('usuario_id', usuarioId);
+
+      final Map<String, dynamic> metadata = <String, dynamic>{
+        if (nombreCompleto != null) 'nombre_completo': nombreCompleto,
+        if (telefono != null) 'telefono': telefono,
+        if (correoSecundario != null) 'correo_secundario': correoSecundario,
+        if (documentoIdentidad != null)
+          'documento_identidad': documentoIdentidad,
+        if (paisResidencia != null) 'pais_residencia': paisResidencia,
+        if (monedaPreferida != null) 'moneda_preferida': monedaPreferida,
+      };
+
+      if (metadata.isNotEmpty) {
+        await _cliente.auth.updateUser(UserAttributes(data: metadata));
+      }
+
+      final PostgrestMap? perfil = await _obtenerPerfil(usuarioId);
+      return _mapearUsuario(usuarioActual, perfil ?? <String, dynamic>{});
+    } on PostgrestException catch (error) {
+      throw AuthRepositorioException(mensaje: error.message);
+    } catch (error) {
+      throw AuthRepositorioException(
+        mensaje: 'No se pudo actualizar el perfil: $error',
+      );
+    }
+  }
+
+  Future<UsuarioModelo> actualizarFotoPerfil({
+    required String usuarioId,
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    final User? usuarioActual = _cliente.auth.currentUser;
+    if (usuarioActual == null || usuarioActual.id != usuarioId) {
+      throw AuthRepositorioException(
+        mensaje: 'No se encontró una sesión activa para actualizar la foto.',
+      );
+    }
+
+    final String extension = _obtenerExtension(contentType);
+    final String nombreArchivo =
+        'perfil-${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final String ruta = '$usuarioId/$nombreArchivo';
+
+    try {
+      await _cliente.storage
+          .from(_bucketPerfiles)
+          .uploadBinary(
+            ruta,
+            bytes,
+            fileOptions: FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+              contentType: contentType,
+            ),
+          );
+
+      final String urlPublica = _cliente.storage
+          .from(_bucketPerfiles)
+          .getPublicUrl(ruta);
+
+      await _cliente
+          .from(_tablaUsuarios)
+          .update(<String, dynamic>{'foto_url': urlPublica})
+          .eq('usuario_id', usuarioId);
+
+      await _cliente.auth.updateUser(
+        UserAttributes(data: <String, dynamic>{'foto_url': urlPublica}),
+      );
+
+      final PostgrestMap? perfil = await _obtenerPerfil(usuarioId);
+      return _mapearUsuario(usuarioActual, perfil ?? <String, dynamic>{});
+    } on StorageException catch (error) {
+      final String mensaje = error.message;
+      if (mensaje.toLowerCase().contains('bucket')) {
+        throw AuthRepositorioException(
+          mensaje:
+              'No se encontró el bucket "$_bucketPerfiles" en Supabase Storage. '
+              'Crea uno con acceso público antes de volver a intentarlo.',
+        );
+      }
+      throw AuthRepositorioException(mensaje: mensaje);
+    } on PostgrestException catch (error) {
+      throw AuthRepositorioException(mensaje: error.message);
+    } catch (error) {
+      throw AuthRepositorioException(
+        mensaje: 'No se pudo actualizar la foto de perfil: $error',
+      );
+    }
+  }
+
+  void _validarDatosPerfil({
+    String? nombreCompleto,
+    String? telefono,
+    String? correoSecundario,
+  }) {
+    if (nombreCompleto != null && nombreCompleto.trim().length < 3) {
+      throw AuthRepositorioException(
+        mensaje: 'El nombre completo debe tener al menos 3 caracteres.',
+      );
+    }
+
+    if (telefono != null) {
+      final String? errorTelefono = ValidadorCredenciales.validarTelefono(
+        telefono,
+      );
+      if (errorTelefono != null) {
+        throw AuthRepositorioException(mensaje: errorTelefono);
+      }
+    }
+
+    if (correoSecundario != null && correoSecundario.isNotEmpty) {
+      final String? errorCorreo = ValidadorCredenciales.validarCorreo(
+        correoSecundario,
+      );
+      if (errorCorreo != null) {
+        throw AuthRepositorioException(mensaje: errorCorreo);
+      }
+    }
+  }
+
+  String _obtenerExtension(String contentType) {
+    final List<String> partes = contentType.split('/');
+    if (partes.length == 2 && partes.last.isNotEmpty) {
+      return partes.last;
+    }
+    return 'jpg';
+  }
+
   UsuarioModelo _mapearUsuario(User usuario, PostgrestMap perfil) {
+    final Map<String, dynamic> metadata =
+        usuario.userMetadata ?? <String, dynamic>{};
     return UsuarioModelo(
       id: usuario.id,
-      nombreCompleto: (perfil['nombre_completo'] as String?) ?? '',
+      nombreCompleto:
+          (perfil['nombre_completo'] as String?) ??
+          metadata['nombre_completo'] as String? ??
+          '',
       correo: usuario.email ?? '',
-      telefono: (perfil['telefono'] as String?) ?? '',
-      terminosAceptados: (perfil['terminos_aceptados'] as bool?) ?? false,
-      pinHash: perfil['pin_hash'] as String?,
+      telefono:
+          (perfil['telefono'] as String?) ??
+          metadata['telefono'] as String? ??
+          '',
+      terminosAceptados:
+          (perfil['terminos_aceptados'] as bool?) ??
+          metadata['terminos_aceptados'] as bool? ??
+          false,
+      correoSecundario:
+          (perfil['correo_secundario'] as String?) ??
+          metadata['correo_secundario'] as String?,
+      documentoIdentidad:
+          (perfil['documento_identidad'] as String?) ??
+          metadata['documento_identidad'] as String?,
+      paisResidencia:
+          (perfil['pais_residencia'] as String?) ??
+          metadata['pais_residencia'] as String?,
+      monedaPreferida:
+          (perfil['moneda_preferida'] as String?) ??
+          metadata['moneda_preferida'] as String?,
+      fotoUrl:
+          (perfil['foto_url'] as String?) ?? metadata['foto_url'] as String?,
+      pinHash:
+          (perfil['pin_hash'] as String?) ?? metadata['pin_hash'] as String?,
     );
   }
 

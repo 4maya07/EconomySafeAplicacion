@@ -6,6 +6,11 @@ class UsuarioModelo {
     required this.correo,
     required this.telefono,
     required this.terminosAceptados,
+    this.correoSecundario,
+    this.documentoIdentidad,
+    this.paisResidencia,
+    this.monedaPreferida,
+    this.fotoUrl,
     this.pinHash,
   });
 
@@ -14,12 +19,22 @@ class UsuarioModelo {
   final String correo;
   final String telefono;
   final bool terminosAceptados;
+  final String? correoSecundario;
+  final String? documentoIdentidad;
+  final String? paisResidencia;
+  final String? monedaPreferida;
+  final String? fotoUrl;
   final String? pinHash;
 
   UsuarioModelo copiarCon({
     String? nombreCompleto,
     String? telefono,
     bool? terminosAceptados,
+    String? correoSecundario,
+    String? documentoIdentidad,
+    String? paisResidencia,
+    String? monedaPreferida,
+    String? fotoUrl,
     String? pinHash,
   }) {
     return UsuarioModelo(
@@ -28,6 +43,11 @@ class UsuarioModelo {
       correo: correo,
       telefono: telefono ?? this.telefono,
       terminosAceptados: terminosAceptados ?? this.terminosAceptados,
+      correoSecundario: correoSecundario ?? this.correoSecundario,
+      documentoIdentidad: documentoIdentidad ?? this.documentoIdentidad,
+      paisResidencia: paisResidencia ?? this.paisResidencia,
+      monedaPreferida: monedaPreferida ?? this.monedaPreferida,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
       pinHash: pinHash ?? this.pinHash,
     );
   }

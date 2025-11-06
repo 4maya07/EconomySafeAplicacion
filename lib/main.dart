@@ -9,23 +9,49 @@ import 'datos/supabase/auth_repositorio.dart';
 import 'datos/supabase/supabase_servicio.dart';
 import 'modelos/usuario_modelo.dart';
 import 'servicios/sesion_servicio.dart';
+import 'servicios/tema_servicio.dart';
 import 'sistema_diseno/identidad_visual.dart';
 import 'vistas/login/login_vista.dart';
 import 'vistas/login/pin_vista.dart';
 import 'vistas/login/restablecer_contrasena_vista.dart';
+import 'vistas/principal/principal_vista.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseServicio.iniciar();
   SesionServicio.iniciarEscucha();
-  runApp(const EconomySafeApp());
+  final ThemeMode temaInicial = await TemaServicio.obtenerModo();
+  runApp(EconomySafeApp(temaInicial: temaInicial));
 }
 
 class EconomySafeApp extends StatefulWidget {
-  const EconomySafeApp({super.key});
+  const EconomySafeApp({super.key, required this.temaInicial});
+
+  final ThemeMode temaInicial;
+
+  static EconomySafeAppController? controller(BuildContext context) {
+    final _EconomySafeAppState? state = context
+        .findAncestorStateOfType<_EconomySafeAppState>();
+    if (state == null) {
+      return null;
+    }
+    return EconomySafeAppController._(state);
+  }
 
   @override
   State<EconomySafeApp> createState() => _EconomySafeAppState();
+}
+
+class EconomySafeAppController {
+  EconomySafeAppController._(this._state);
+
+  final _EconomySafeAppState _state;
+
+  ThemeMode get themeMode => _state.themeModeActual;
+
+  Future<void> actualizarThemeMode(ThemeMode modo) async {
+    await _state.actualizarThemeMode(modo);
+  }
 }
 
 class _EconomySafeAppState extends State<EconomySafeApp> {
@@ -35,10 +61,12 @@ class _EconomySafeAppState extends State<EconomySafeApp> {
   bool _mostrarRestablecerPendiente = false;
   bool _haMostradoRestablecer = false;
   String? _mensajeRecuperacion;
+  late ThemeMode _themeMode;
 
   @override
   void initState() {
     super.initState();
+    _themeMode = widget.temaInicial;
     _suscribirseCambiosAuth();
     _estadoInicial = _prepararEstadoInicial();
   }
@@ -200,11 +228,23 @@ class _EconomySafeAppState extends State<EconomySafeApp> {
       return const _EstadoInicial();
     }
 
-    final bool requiereConfiguracionPin = (usuario.pinHash ?? '').isEmpty;
+    final bool mostrarPin = (usuario.pinHash ?? '').isNotEmpty;
     return _EstadoInicial(
       usuario: usuario,
-      requiereConfiguracionPin: requiereConfiguracionPin,
+      mostrarPin: mostrarPin,
     );
+  }
+
+  ThemeMode get themeModeActual => _themeMode;
+
+  Future<void> actualizarThemeMode(ThemeMode modo) async {
+    if (!mounted) {
+      return;
+    }
+    if (_themeMode != modo) {
+      setState(() => _themeMode = modo);
+    }
+    await TemaServicio.guardarModo(modo);
   }
 
   @override
@@ -221,7 +261,7 @@ class _EconomySafeAppState extends State<EconomySafeApp> {
       navigatorKey: _navigatorKey,
       theme: TemasApp.obtenerTemaClaro(),
       darkTheme: TemasApp.obtenerTemaOscuro(),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       home: FutureBuilder<_EstadoInicial>(
         future: _estadoInicial,
         builder:
@@ -241,8 +281,8 @@ class _EconomySafeAppState extends State<EconomySafeApp> {
                 return LoginVista(mensajeInicial: mensaje);
               }
 
-              if (estado.requiereConfiguracionPin) {
-                return PinVista.configurar(usuario: estado.usuario!);
+              if (!estado.mostrarPin) {
+                return const PrincipalVista();
               }
 
               return PinVista.validar(usuario: estado.usuario!);
@@ -253,10 +293,10 @@ class _EconomySafeAppState extends State<EconomySafeApp> {
 }
 
 class _EstadoInicial {
-  const _EstadoInicial({this.usuario, this.requiereConfiguracionPin = false});
+  const _EstadoInicial({this.usuario, this.mostrarPin = false});
 
   final UsuarioModelo? usuario;
-  final bool requiereConfiguracionPin;
+  final bool mostrarPin;
 
   bool get tieneSesion => usuario != null;
 }

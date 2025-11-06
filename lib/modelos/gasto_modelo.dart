@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'cuenta_bancaria_modelo.dart';
+
 enum MedioPagoGasto { efectivo, banco }
 
 enum FrecuenciaGasto { unaVez, semanal, mensual, trimestral, otro }
@@ -170,18 +172,14 @@ DateTime? _aFecha(dynamic valor) {
   return DateTime.tryParse(valor.toString());
 }
 
-String? _resolverNombreCuenta(Map<String, dynamic> datos) {
-  final String? bancoPersonalizado = datos['banco_personalizado'] as String?;
-  final String? numeroCuenta = datos['numero_cuenta'] as String?;
+String _resolverNombreCuenta(Map<String, dynamic> datos) {
   final Map<String, dynamic>? banco =
       datos['catalogo_bancos'] as Map<String, dynamic>?;
-  final String? catalogoNombre = banco?['nombre'] as String?;
-  final String? nombre = bancoPersonalizado ?? catalogoNombre;
-  if ((nombre ?? '').isEmpty) {
-    return numeroCuenta;
-  }
-  if ((numeroCuenta ?? '').isEmpty) {
-    return nombre;
-  }
-  return '$nombre · $numeroCuenta';
+  return CuentaBancariaModelo.construirDescripcion(
+    catalogoBancoNombre: banco?['nombre'] as String?,
+    bancoPersonalizado: datos['banco_personalizado'] as String?,
+    titular: datos['titular'] as String?,
+    tipoPlano: datos['tipo'] as String?,
+    numeroCuenta: datos['numero_cuenta'] as String?,
+  );
 }

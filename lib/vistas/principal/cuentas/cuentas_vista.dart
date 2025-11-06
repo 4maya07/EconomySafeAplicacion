@@ -160,7 +160,7 @@ class _CuentasVistaState extends State<CuentasVista> {
     double credito = 0;
     for (final CuentaBancariaModelo cuenta in _cuentas) {
       if (cuenta.esCredito) {
-        credito += cuenta.limiteCredito ?? 0;
+        credito += cuenta.montoDisponible;
       } else {
         depositos += cuenta.montoDisponible;
       }

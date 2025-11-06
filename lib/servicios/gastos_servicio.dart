@@ -12,7 +12,7 @@ class GastosServicio {
 
   static const String _tablaGastos = 'gastos';
   static const String _camposDetalle =
-      '*, categorias_gasto(nombre), cuentas_bancarias(banco_personalizado, numero_cuenta, catalogo_bancos(nombre))';
+    '*, categorias_gasto(nombre), cuentas_bancarias(titular, numero_cuenta, tipo, banco_personalizado, catalogo_bancos(nombre))';
 
   Future<List<GastoModelo>> obtenerGastos(
     String usuarioId, {
@@ -20,6 +20,8 @@ class GastosServicio {
     DateTime? hasta,
     String? categoriaId,
     String? cuentaId,
+    MedioPagoGasto? medio,
+    int? limite,
   }) async {
     var consulta = _cliente
         .from(_tablaGastos)
@@ -38,10 +40,19 @@ class GastosServicio {
     if (cuentaId != null) {
       consulta = consulta.eq('cuenta_id', cuentaId);
     }
+    if (medio != null) {
+      consulta = consulta.eq('tipo', medio.name);
+    }
 
-    final List<dynamic> datos = await consulta
+    var transformado = consulta
         .order('fecha', ascending: false)
         .order('created_at', ascending: false);
+
+    if (limite != null) {
+      transformado = transformado.limit(limite);
+    }
+
+    final List<dynamic> datos = await transformado;
 
     return datos
         .map(
@@ -49,6 +60,21 @@ class GastosServicio {
               GastoModelo.desdeMapa(item as Map<String, dynamic>),
         )
         .toList();
+  }
+
+  Future<double> obtenerTotalPorMedio(
+    String usuarioId, {
+    required MedioPagoGasto medio,
+  }) async {
+    final List<GastoModelo> gastos = await obtenerGastos(
+      usuarioId,
+      medio: medio,
+    );
+
+    return gastos.fold<double>(
+      0,
+      (double acumulado, GastoModelo gasto) => acumulado + gasto.monto,
+    );
   }
 
   Future<GastoModelo?> obtenerGastoPorId(String gastoId) async {

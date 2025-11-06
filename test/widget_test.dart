@@ -8,11 +8,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:appeconomysafe/datos/supabase/supabase_servicio.dart';
 import 'package:appeconomysafe/main.dart';
 
 void main() {
   testWidgets('EconomySafeApp muestra la vista de login', (WidgetTester tester) async {
-    await tester.pumpWidget(const EconomySafeApp());
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await SupabaseServicio.iniciar();
+    await tester.pumpWidget(
+      const EconomySafeApp(temaInicial: ThemeMode.system),
+    );
     await tester.pump();
     await tester.pumpAndSettle();
 

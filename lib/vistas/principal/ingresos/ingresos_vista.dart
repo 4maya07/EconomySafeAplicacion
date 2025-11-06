@@ -977,6 +977,16 @@ class _FormularioIngresoSheetState extends State<_FormularioIngresoSheet> {
         ? _cuentaId
         : null;
 
+    CuentaBancariaModelo? cuentaSeleccionadaModelo;
+    if (cuentaSeleccionada != null) {
+      for (final CuentaBancariaModelo cuenta in widget.cuentas) {
+        if (cuenta.id == cuentaSeleccionada) {
+          cuentaSeleccionadaModelo = cuenta;
+          break;
+        }
+      }
+    }
+
     final IngresoModelo resultado = IngresoModelo(
       id: widget.ingresoInicial?.id,
       usuarioId: widget.usuarioId,
@@ -987,14 +997,7 @@ class _FormularioIngresoSheetState extends State<_FormularioIngresoSheet> {
           )
           .nombre,
       cuentaId: cuentaSeleccionada,
-      cuentaNombre: cuentaSeleccionada == null
-          ? null
-          : widget.cuentas
-                .firstWhere(
-                  (CuentaBancariaModelo cuenta) =>
-                      cuenta.id == cuentaSeleccionada,
-                )
-                .nombreBanco,
+  cuentaNombre: cuentaSeleccionadaModelo?.descripcionSeleccion,
       monto: monto,
       descripcion: _descripcionCtrl.text.trim().isEmpty
           ? null
@@ -1137,7 +1140,7 @@ class _FormularioIngresoSheetState extends State<_FormularioIngresoSheet> {
                           (CuentaBancariaModelo cuenta) =>
                               DropdownMenuItem<String>(
                                 value: cuenta.id,
-                                child: Text(cuenta.nombreBanco),
+                                child: Text(cuenta.descripcionSeleccion),
                               ),
                         )
                         .toList(),

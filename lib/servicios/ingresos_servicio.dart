@@ -12,7 +12,7 @@ class IngresosServicio {
 
   static const String _tabla = 'ingresos';
   static const String _camposDetalle =
-      '*, categorias_ingreso(nombre, frecuencia), cuentas_bancarias(banco_personalizado, numero_cuenta, catalogo_bancos(nombre))';
+    '*, categorias_ingreso(nombre, frecuencia), cuentas_bancarias(titular, numero_cuenta, tipo, banco_personalizado, catalogo_bancos(nombre))';
 
   Future<double> obtenerTotalPorMedio(
     String usuarioId, {
@@ -36,6 +36,7 @@ class IngresosServicio {
     String? categoriaId,
     MedioIngreso? medio,
     PeriodicidadIngreso? periodicidad,
+    int? limite,
   }) async {
     var consulta = _cliente
         .from(_tabla)
@@ -58,9 +59,15 @@ class IngresosServicio {
       consulta = consulta.eq('frecuencia', periodicidad.name);
     }
 
-    final List<dynamic> datos = await consulta
+    var transformado = consulta
         .order('fecha', ascending: false)
         .order('created_at', ascending: false);
+
+    if (limite != null) {
+      transformado = transformado.limit(limite);
+    }
+
+    final List<dynamic> datos = await transformado;
 
     return datos
         .map(

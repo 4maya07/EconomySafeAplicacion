@@ -367,6 +367,18 @@ class _TarjetaCategoriaGasto extends StatelessWidget {
   final VoidCallback? onEliminar;
 
   String _formatear(double monto) => '\\${monto.toStringAsFixed(2)}';
+  String _formatearFecha(DateTime fecha) {
+    final String dia = fecha.day.toString().padLeft(2, '0');
+    final String mes = fecha.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${fecha.year}';
+  }
+
+  String? _periodoTexto(CategoriaGastoModelo categoria) {
+    if (!categoria.tieneRangoFechas) {
+      return null;
+    }
+    return '${_formatearFecha(categoria.fechaInicio!)} → ${_formatearFecha(categoria.fechaFin!)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +386,7 @@ class _TarjetaCategoriaGasto extends StatelessWidget {
     final TextTheme textos = tema.textTheme;
     final bool modoOscuro = tema.brightness == Brightness.dark;
     final double porcentaje = categoria.porcentajeConsumido;
+    final bool esGastoFijo = categoria.frecuencia != CategoriaFrecuencia.ninguna;
 
     final Color fondo = modoOscuro
         ? ColoresBaseOscuro.fondoTarjetas
@@ -455,21 +468,34 @@ class _TarjetaCategoriaGasto extends StatelessWidget {
                 valor: _formatear(categoria.montoMaximo),
                 icono: Icons.flag_outlined,
               ),
-              _DetalleDato(
-                titulo: 'Gastado',
-                valor: _formatear(categoria.montoGastado),
-                icono: Icons.payments_outlined,
-              ),
-              _DetalleDato(
-                titulo: 'Extra permitido',
-                valor: _formatear(categoria.montoAdicionalPermitido),
-                icono: Icons.trending_up_outlined,
-              ),
+              if (!esGastoFijo)
+                _DetalleDato(
+                  titulo: 'Gastado',
+                  valor: _formatear(categoria.montoGastado),
+                  icono: Icons.payments_outlined,
+                ),
+              if (!esGastoFijo)
+                _DetalleDato(
+                  titulo: 'Extra permitido',
+                  valor: _formatear(categoria.montoAdicionalPermitido),
+                  icono: Icons.trending_up_outlined,
+                ),
               _DetalleDato(
                 titulo: 'Porcentaje consumido',
                 valor: '${(porcentaje * 100).toStringAsFixed(1)}%',
                 icono: Icons.percent,
               ),
+              _DetalleDato(
+                titulo: 'Frecuencia',
+                valor: categoria.etiquetaFrecuencia,
+                icono: Icons.event_repeat_outlined,
+              ),
+              if (_periodoTexto(categoria) != null)
+                _DetalleDato(
+                  titulo: 'Periodo',
+                  valor: _periodoTexto(categoria)!,
+                  icono: Icons.calendar_month_outlined,
+                ),
             ],
           ),
           if (categoria.sobreLimite)
@@ -685,6 +711,7 @@ class _DetalleCategoriaSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData tema = Theme.of(context);
     final TextTheme textos = tema.textTheme;
+    final bool esGastoFijo = categoria.frecuencia != CategoriaFrecuencia.ninguna;
 
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
@@ -721,19 +748,21 @@ class _DetalleCategoriaSheet extends StatelessWidget {
                 icono: Icons.flag_outlined,
               ),
               const SizedBox(height: 8),
-              _DetalleDato(
-                titulo: 'Gastado',
-                valor: '\\${categoria.montoGastado.toStringAsFixed(2)}',
-                icono: Icons.payments_outlined,
-              ),
-              const SizedBox(height: 8),
-              _DetalleDato(
-                titulo: 'Extra permitido',
-                valor:
-                    '\\${categoria.montoAdicionalPermitido.toStringAsFixed(2)}',
-                icono: Icons.trending_up_outlined,
-              ),
-              const SizedBox(height: 8),
+              if (!esGastoFijo) ...<Widget>[
+                _DetalleDato(
+                  titulo: 'Gastado',
+                  valor: '\\${categoria.montoGastado.toStringAsFixed(2)}',
+                  icono: Icons.payments_outlined,
+                ),
+                const SizedBox(height: 8),
+                _DetalleDato(
+                  titulo: 'Extra permitido',
+                  valor:
+                      '\\${categoria.montoAdicionalPermitido.toStringAsFixed(2)}',
+                  icono: Icons.trending_up_outlined,
+                ),
+                const SizedBox(height: 8),
+              ],
               _DetalleDato(
                 titulo: 'Porcentaje consumido',
                 valor:
@@ -770,6 +799,12 @@ class _ModalFormularioCategoriaGastoState
   final TextEditingController _montoMaximoCtrl = TextEditingController();
   final TextEditingController _montoGastadoCtrl = TextEditingController();
   final TextEditingController _montoAdicionalCtrl = TextEditingController();
+  final TextEditingController _fechaInicioCtrl = TextEditingController();
+  final TextEditingController _fechaFinCtrl = TextEditingController();
+
+  CategoriaFrecuencia _frecuencia = CategoriaFrecuencia.ninguna;
+  DateTime? _fechaInicio;
+  DateTime? _fechaFin;
 
   bool get _esEdicion => widget.categoriaInicial != null;
 
@@ -784,6 +819,15 @@ class _ModalFormularioCategoriaGastoState
       _montoGastadoCtrl.text = categoria.montoGastado.toStringAsFixed(2);
       _montoAdicionalCtrl.text = categoria.montoAdicionalPermitido
           .toStringAsFixed(2);
+      _frecuencia = categoria.frecuencia;
+      _fechaInicio = categoria.fechaInicio;
+      _fechaFin = categoria.fechaFin;
+      if (_fechaInicio != null) {
+        _fechaInicioCtrl.text = _formatearFecha(_fechaInicio!);
+      }
+      if (_fechaFin != null) {
+        _fechaFinCtrl.text = _formatearFecha(_fechaFin!);
+      }
     }
   }
 
@@ -794,6 +838,8 @@ class _ModalFormularioCategoriaGastoState
     _montoMaximoCtrl.dispose();
     _montoGastadoCtrl.dispose();
     _montoAdicionalCtrl.dispose();
+    _fechaInicioCtrl.dispose();
+    _fechaFinCtrl.dispose();
     super.dispose();
   }
 
@@ -801,14 +847,82 @@ class _ModalFormularioCategoriaGastoState
     return double.tryParse(valor.replaceAll(',', '.'));
   }
 
+  String _formatearFecha(DateTime fecha) {
+    final String dia = fecha.day.toString().padLeft(2, '0');
+    final String mes = fecha.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${fecha.year}';
+  }
+
+  Future<void> _seleccionarFecha({required bool esInicio}) async {
+    final DateTime now = DateTime.now();
+    final DateTime? seleccionada = await showDatePicker(
+      context: context,
+      initialDate: esInicio ? (_fechaInicio ?? now) : (_fechaFin ?? now),
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+      locale: Localizations.localeOf(context),
+    );
+
+    if (seleccionada == null) {
+      return;
+    }
+
+    setState(() {
+      if (esInicio) {
+        _fechaInicio = seleccionada;
+        _fechaInicioCtrl.text = _formatearFecha(seleccionada);
+        if (_fechaFin != null && _fechaFin!.isBefore(seleccionada)) {
+          _fechaFin = seleccionada;
+          _fechaFinCtrl.text = _formatearFecha(seleccionada);
+        }
+      } else {
+        _fechaFin = seleccionada;
+        _fechaFinCtrl.text = _formatearFecha(seleccionada);
+      }
+    });
+  }
+
   void _guardar() {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
+    final bool esGastoFijo = _frecuencia != CategoriaFrecuencia.ninguna;
+
+    if (esGastoFijo) {
+      if (_fechaInicio == null || _fechaFin == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Define la fecha de inicio y fin para la categoría.'),
+          ),
+        );
+        return;
+      }
+      if (_fechaFin!.isBefore(_fechaInicio!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La fecha fin debe ser posterior a la fecha inicio.'),
+          ),
+        );
+        return;
+      }
+    } else {
+      _fechaInicio = null;
+      _fechaFin = null;
+    }
+
     final double montoMaximo = _obtenerMonto(_montoMaximoCtrl.text) ?? 0;
-    final double montoGastado = _obtenerMonto(_montoGastadoCtrl.text) ?? 0;
-    final double montoAdicional = _obtenerMonto(_montoAdicionalCtrl.text) ?? 0;
+    final double montoGastado = esGastoFijo
+        ? 0
+        : _obtenerMonto(_montoGastadoCtrl.text) ?? 0;
+    final double montoAdicional = esGastoFijo
+        ? 0
+        : _obtenerMonto(_montoAdicionalCtrl.text) ?? 0;
+
+    if (esGastoFijo) {
+      _montoGastadoCtrl.text = '0.00';
+      _montoAdicionalCtrl.text = '0.00';
+    }
 
     final CategoriaGastoModelo base =
         widget.categoriaInicial ??
@@ -821,6 +935,9 @@ class _ModalFormularioCategoriaGastoState
           montoMaximo: montoMaximo,
           montoGastado: montoGastado,
           montoAdicionalPermitido: montoAdicional,
+          frecuencia: _frecuencia,
+          fechaInicio: _fechaInicio,
+          fechaFin: _fechaFin,
         );
 
     final CategoriaGastoModelo resultado = base.copiarCon(
@@ -831,6 +948,9 @@ class _ModalFormularioCategoriaGastoState
       montoMaximo: montoMaximo,
       montoGastado: montoGastado,
       montoAdicionalPermitido: montoAdicional,
+      frecuencia: _frecuencia,
+      fechaInicio: _fechaInicio,
+      fechaFin: _fechaFin,
     );
 
     Navigator.of(context).pop(resultado);
@@ -839,6 +959,7 @@ class _ModalFormularioCategoriaGastoState
   @override
   Widget build(BuildContext context) {
     final ThemeData tema = Theme.of(context);
+    final bool esGastoFijo = _frecuencia != CategoriaFrecuencia.ninguna;
 
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
@@ -891,6 +1012,85 @@ class _ModalFormularioCategoriaGastoState
                   maxLines: 3,
                 ),
                 const SizedBox(height: 16),
+                DropdownButtonFormField<CategoriaFrecuencia>(
+                  value: _frecuencia,
+                  decoration: const InputDecoration(
+                    labelText: 'Frecuencia / periodicidad',
+                  ),
+                  items: const <DropdownMenuItem<CategoriaFrecuencia>>[
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.ninguna,
+                      child: Text('Sin periodicidad'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.mensual,
+                      child: Text('Mensual'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.bimestral,
+                      child: Text('Bimestral'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.trimestral,
+                      child: Text('Trimestral'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.cuatrimestral,
+                      child: Text('Cuatrimestral'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.anual,
+                      child: Text('Anual'),
+                    ),
+                    DropdownMenuItem(
+                      value: CategoriaFrecuencia.personalizada,
+                      child: Text('Rango personalizado'),
+                    ),
+                  ],
+                  onChanged: (CategoriaFrecuencia? valor) {
+                    if (valor == null) {
+                      return;
+                    }
+                    setState(() {
+                      _frecuencia = valor;
+                      if (_frecuencia != CategoriaFrecuencia.ninguna) {
+                        _montoGastadoCtrl.text = '0.00';
+                        _montoAdicionalCtrl.text = '0.00';
+                      }
+                    });
+                  },
+                ),
+                if (esGastoFijo) ...<Widget>[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextFormField(
+                          controller: _fechaInicioCtrl,
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Fecha de inicio',
+                            hintText: 'Selecciona la fecha inicial',
+                          ),
+                          onTap: () => _seleccionarFecha(esInicio: true),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _fechaFinCtrl,
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Fecha de fin',
+                            hintText: 'Selecciona la fecha final',
+                          ),
+                          onTap: () => _seleccionarFecha(esInicio: false),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _montoMaximoCtrl,
                   decoration: const InputDecoration(
@@ -907,45 +1107,47 @@ class _ModalFormularioCategoriaGastoState
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _montoGastadoCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Monto gastado a la fecha',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (String? valor) {
-                    final double? monto = _obtenerMonto(valor ?? '');
-                    if (monto == null || monto < 0) {
-                      return 'Ingresa un monto válido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _montoAdicionalCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Monto adicional permitido',
-                    helperText:
-                        'Cantidad extra que puedes gastar si sobrepasas el límite.',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (String? valor) {
-                    if ((valor ?? '').trim().isEmpty) {
+                if (!esGastoFijo) ...<Widget>[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _montoGastadoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Monto gastado a la fecha',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (String? valor) {
+                      final double? monto = _obtenerMonto(valor ?? '');
+                      if (monto == null || monto < 0) {
+                        return 'Ingresa un monto válido';
+                      }
                       return null;
-                    }
-                    final double? monto = _obtenerMonto(valor!);
-                    if (monto == null || monto < 0) {
-                      return 'Ingresa un monto adicional válido';
-                    }
-                    return null;
-                  },
-                ),
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _montoAdicionalCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Monto adicional permitido',
+                      helperText:
+                          'Cantidad extra que puedes gastar si sobrepasas el límite.',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (String? valor) {
+                      if ((valor ?? '').trim().isEmpty) {
+                        return null;
+                      }
+                      final double? monto = _obtenerMonto(valor!);
+                      if (monto == null || monto < 0) {
+                        return 'Ingresa un monto adicional válido';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
                 const SizedBox(height: 24),
                 Align(
                   alignment: Alignment.centerRight,

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../controladores/login_controlador.dart';
-import '../../modelos/usuario_modelo.dart';
 import '../../servicios/sesion_servicio.dart';
-import 'pin_vista.dart';
 import 'recuperar_contrasena_vista.dart';
 import 'registro_vista.dart';
+import '../principal/principal_vista.dart';
 
 /// Pantalla inicial de autenticación para EconomySafe.
 class LoginVista extends StatefulWidget {
@@ -76,8 +75,6 @@ class _LoginVistaState extends State<LoginVista> {
       return;
     }
 
-    final UsuarioModelo usuario = resultado.usuario!;
-
     if (_recordarme) {
       final Session? sesion = Supabase.instance.client.auth.currentSession;
       if (sesion != null) {
@@ -88,18 +85,14 @@ class _LoginVistaState extends State<LoginVista> {
       await SesionServicio.limpiarSesion();
     }
 
-    final bool tienePin = (usuario.pinHash ?? '').isNotEmpty;
-    final Widget destino = tienePin
-        ? PinVista.validar(usuario: usuario)
-        : PinVista.configurar(usuario: usuario);
-
     if (!mounted) {
       return;
     }
 
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<Widget>(builder: (_) => destino));
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<Widget>(builder: (_) => const PrincipalVista()),
+      (_) => false,
+    );
   }
 
   @override
