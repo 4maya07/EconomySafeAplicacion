@@ -16,6 +16,7 @@ import 'dashboard_vista.dart';
 import 'gastos/gastos_vista.dart';
 import 'ingresos/ingresos_vista.dart';
 import 'perfil/perfil_vista.dart';
+import '../reportes_screen.dart';
 
 /// Contenedor principal con navegación inferior y dashboard financiero.
 class PrincipalVista extends StatefulWidget {
@@ -305,7 +306,7 @@ class _PrincipalVistaState extends State<PrincipalVista> {
         recargaNotifier: _recargaCuentasNotifier,
       ),
       const _SeccionPlaceholder(titulo: 'Ahorro'),
-      const _SeccionPlaceholder(titulo: 'Reportes'),
+      const ReportesScreen(),
       const PerfilVista(),
     ];
 

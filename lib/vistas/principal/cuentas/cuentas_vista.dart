@@ -1172,9 +1172,10 @@ class _ModalFormularioCuentaState extends State<_ModalFormularioCuenta> {
                       if (valor == null || valor.trim().isEmpty) {
                         return 'Ingresa el número de cuenta';
                       }
-                      if (valor.replaceAll(RegExp(r'\D'), '').length < 6) {
-                        return 'Revisa el número ingresado';
-                      }
+                        final int longitud = valor.replaceAll(RegExp(r'\D'), '').length;
+                        if (longitud < 6 || longitud > 16) {
+                          return 'El número de cuenta debe tener entre 6 y 16 dígitos';
+                        }
                       return null;
                     },
                   ),

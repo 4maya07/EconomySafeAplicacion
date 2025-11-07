@@ -1013,7 +1013,7 @@ class _ModalFormularioCategoriaGastoState
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<CategoriaFrecuencia>(
-                  value: _frecuencia,
+                  initialValue: _frecuencia,
                   decoration: const InputDecoration(
                     labelText: 'Frecuencia / periodicidad',
                   ),
